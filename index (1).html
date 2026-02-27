@@ -1,0 +1,1594 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard Financiero · Marketplaces MX</title>
+  <!-- React 18 -->
+  <script src="https://unpkg.com/react@18.2.0/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js" crossorigin></script>
+  <!-- PropTypes (required by Recharts) -->
+  <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js" crossorigin></script>
+  <!-- SheetJS -->
+  <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js" crossorigin></script>
+  <!-- Recharts (needs React + ReactDOM + PropTypes globally) -->
+  <script src="https://unpkg.com/recharts@2.8.0/umd/Recharts.js" crossorigin></script>
+  <!-- Babel standalone for JSX -->
+  <script src="https://unpkg.com/@babel/standalone@7.23.2/babel.min.js" crossorigin></script>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0a0b0f;
+      --bg2: #111318;
+      --bg3: #181b22;
+      --border: #23272f;
+      --border2: #2d3340;
+      --accent: #00e5a0;
+      --accent2: #0099ff;
+      --accent3: #ff6b35;
+      --accent4: #c084fc;
+      --text: #e8eaf0;
+      --text2: #8892a4;
+      --text3: #4a5568;
+      --red: #f87171;
+      --yellow: #fbbf24;
+      --green: #34d399;
+      --card-glow: 0 0 0 1px var(--border), 0 4px 24px rgba(0,0,0,0.4);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'DM Mono', monospace;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    h1, h2, h3, h4, .display { font-family: 'Syne', sans-serif; }
+
+    /* GRID NOISE BACKGROUND */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(var(--border) 1px, transparent 1px),
+        linear-gradient(90deg, var(--border) 1px, transparent 1px);
+      background-size: 48px 48px;
+      opacity: 0.25;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container { max-width: 1400px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+
+    /* HEADER */
+    .header {
+      border-bottom: 1px solid var(--border);
+      padding: 20px 0;
+      background: rgba(10,11,15,0.9);
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .header-inner { display: flex; align-items: center; gap: 16px; }
+    .logo-mark {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Syne', sans-serif;
+      font-weight: 800; font-size: 14px;
+      color: #000;
+      flex-shrink: 0;
+    }
+    .header h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.5px; }
+    .header-subtitle { font-size: 11px; color: var(--text2); margin-left: auto; }
+    .fiscal-badge {
+      background: rgba(0,229,160,0.1);
+      border: 1px solid rgba(0,229,160,0.3);
+      color: var(--accent);
+      font-size: 10px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      letter-spacing: 0.5px;
+      font-family: 'DM Mono', monospace;
+    }
+
+    /* UPLOAD SECTION */
+    .upload-section {
+      padding: 48px 0;
+      background: var(--bg);
+    }
+    .section-label {
+      font-size: 11px;
+      letter-spacing: 2px;
+      color: var(--text2);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      font-family: 'DM Mono', monospace;
+    }
+    .section-title {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -1px;
+      margin-bottom: 8px;
+    }
+    .section-desc {
+      font-size: 13px;
+      color: var(--text2);
+      line-height: 1.6;
+      max-width: 560px;
+      font-family: 'DM Mono', monospace;
+    }
+
+    .upload-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-top: 32px;
+    }
+    @media (max-width: 900px) { .upload-grid { grid-template-columns: 1fr; } }
+
+    .upload-card {
+      background: var(--bg2);
+      border: 1px dashed var(--border2);
+      border-radius: 16px;
+      padding: 28px;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+    .upload-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .upload-card.ml::before { background: linear-gradient(90deg, #00e5a0, #0099ff); }
+    .upload-card.amz::before { background: linear-gradient(90deg, #ff9900, #ff6b35); }
+    .upload-card.prices::before { background: linear-gradient(90deg, #c084fc, #7c3aed); }
+    .upload-card:hover { border-color: var(--border); background: var(--bg3); }
+    .upload-card:hover::before { opacity: 1; }
+    .upload-card.loaded {
+      border-style: solid;
+      background: var(--bg3);
+    }
+    .upload-card.loaded.ml { border-color: rgba(0,229,160,0.4); }
+    .upload-card.loaded.amz { border-color: rgba(255,153,0,0.4); }
+    .upload-card.loaded.prices { border-color: rgba(192,132,252,0.4); }
+    .upload-card.loaded::before { opacity: 1; }
+
+    .upload-icon {
+      width: 44px; height: 44px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+      margin-bottom: 16px;
+    }
+    .upload-card.ml .upload-icon { background: rgba(0,229,160,0.1); }
+    .upload-card.amz .upload-icon { background: rgba(255,153,0,0.1); }
+    .upload-card.prices .upload-icon { background: rgba(192,132,252,0.1); }
+
+    .upload-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+    .upload-card p { font-size: 12px; color: var(--text2); line-height: 1.5; font-family: 'DM Mono', monospace; }
+    .upload-hint { font-size: 11px; color: var(--text3); margin-top: 12px; }
+    .upload-status {
+      display: inline-flex; align-items: center; gap: 6px;
+      margin-top: 12px;
+      font-size: 11px;
+      color: var(--accent);
+      font-family: 'DM Mono', monospace;
+    }
+    .upload-status .dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+    input[type="file"] { display: none; }
+
+    /* DISCLAIMER BAR */
+    .disclaimer {
+      background: rgba(251,191,36,0.08);
+      border: 1px solid rgba(251,191,36,0.2);
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-top: 32px;
+      font-size: 12px;
+      color: var(--text2);
+      line-height: 1.6;
+      font-family: 'DM Mono', monospace;
+    }
+    .disclaimer strong { color: var(--yellow); }
+
+    /* DIVIDER */
+    .divider { border: none; border-top: 1px solid var(--border); margin: 0; }
+
+    /* DASHBOARD */
+    .dashboard { padding: 48px 0; }
+    .dashboard-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 32px;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .period-badge {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 16px;
+      font-size: 12px;
+      color: var(--text2);
+    }
+
+    /* KPI GRID */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    @media (max-width: 1100px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 600px) { .kpi-grid { grid-template-columns: 1fr; } }
+
+    .kpi-card {
+      background: var(--bg2);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: var(--card-glow);
+      position: relative;
+      overflow: hidden;
+    }
+    .kpi-card::after {
+      content: '';
+      position: absolute;
+      top: -1px; right: 40px;
+      width: 60px; height: 2px;
+    }
+    .kpi-card.accent1::after { background: var(--accent); }
+    .kpi-card.accent2::after { background: var(--accent2); }
+    .kpi-card.accent3::after { background: var(--accent3); }
+    .kpi-card.accent4::after { background: var(--accent4); }
+    .kpi-card.red::after { background: var(--red); }
+    .kpi-card.yellow::after { background: var(--yellow); }
+
+    .kpi-label { font-size: 11px; color: var(--text2); letter-spacing: 0.5px; margin-bottom: 10px; text-transform: uppercase; }
+    .kpi-value { font-size: 26px; font-weight: 700; letter-spacing: -1px; }
+    .kpi-value.mono { font-family: 'DM Mono', monospace; }
+    .kpi-sub { font-size: 11px; color: var(--text2); margin-top: 6px; }
+    .kpi-sub.pos { color: var(--green); }
+    .kpi-sub.neg { color: var(--red); }
+
+    /* CHART GRID */
+    .chart-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    @media (max-width: 1000px) { .chart-grid { grid-template-columns: 1fr; } }
+
+    .chart-card {
+      background: var(--bg2);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: var(--card-glow);
+    }
+    .chart-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+    .chart-sub { font-size: 11px; color: var(--text2); margin-bottom: 20px; font-family: 'DM Mono', monospace; }
+
+    /* SKU TABLE */
+    .table-card {
+      background: var(--bg2);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: var(--card-glow);
+      margin-bottom: 24px;
+      overflow-x: auto;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    thead tr { border-bottom: 1px solid var(--border); }
+    th { text-align: left; padding: 8px 12px; font-size: 10px; letter-spacing: 1px; color: var(--text2); text-transform: uppercase; font-weight: 500; font-family: 'DM Mono', monospace; white-space: nowrap; }
+    td { padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.03); font-family: 'DM Mono', monospace; font-size: 12px; white-space: nowrap; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+    }
+    .badge.ml { background: rgba(0,229,160,0.12); color: var(--accent); }
+    .badge.amz { background: rgba(255,153,0,0.12); color: #ff9900; }
+    .pos { color: var(--green); }
+    .neg { color: var(--red); }
+    .neutral { color: var(--yellow); }
+
+    /* ESTADO DE RESULTADOS */
+    .pnl-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    @media (max-width: 900px) { .pnl-grid { grid-template-columns: 1fr; } }
+
+    .pnl-card {
+      background: var(--bg2);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: var(--card-glow);
+    }
+    .pnl-line {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      font-size: 13px;
+    }
+    .pnl-line:last-child { border-bottom: none; }
+    .pnl-line.total {
+      border-top: 1px solid var(--border2);
+      border-bottom: none;
+      padding-top: 12px;
+      margin-top: 4px;
+      font-weight: 700;
+      font-size: 14px;
+    }
+    .pnl-line.subtotal { color: var(--text2); font-size: 12px; }
+    .pnl-indent { color: var(--text2); padding-left: 16px; font-size: 12px; }
+    .pnl-section-header {
+      font-size: 10px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--text3);
+      padding: 12px 0 4px;
+      font-family: 'DM Mono', monospace;
+    }
+
+    /* COSTOS FIJOS */
+    .fixed-costs-section {
+      background: var(--bg2);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: var(--card-glow);
+    }
+    .fixed-costs-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 16px;
+    }
+    @media (max-width: 800px) { .fixed-costs-grid { grid-template-columns: 1fr; } }
+
+    .cost-input-group { display: flex; flex-direction: column; gap: 6px; }
+    .cost-input-label { font-size: 11px; color: var(--text2); letter-spacing: 0.5px; }
+    .cost-input {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      width: 100%;
+      transition: border-color 0.2s;
+    }
+    .cost-input:focus { outline: none; border-color: var(--accent2); }
+    .add-cost-btn {
+      background: rgba(0,229,160,0.1);
+      border: 1px solid rgba(0,229,160,0.2);
+      border-radius: 8px;
+      padding: 10px 20px;
+      color: var(--accent);
+      cursor: pointer;
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      transition: all 0.2s;
+      margin-top: 4px;
+    }
+    .add-cost-btn:hover { background: rgba(0,229,160,0.2); }
+    .remove-btn {
+      background: none;
+      border: none;
+      color: var(--text3);
+      cursor: pointer;
+      font-size: 14px;
+      padding: 4px;
+      transition: color 0.2s;
+    }
+    .remove-btn:hover { color: var(--red); }
+    .cost-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      background: var(--bg3);
+      border-radius: 8px;
+      margin-top: 8px;
+      font-size: 12px;
+      font-family: 'DM Mono', monospace;
+    }
+    .cost-item-name { color: var(--text2); }
+    .cost-item-amount { color: var(--text); }
+
+    /* EXPORT BTN */
+    .export-btn {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border: none;
+      border-radius: 10px;
+      padding: 12px 28px;
+      color: #000;
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .export-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(0,229,160,0.3); }
+    .export-btn:disabled { opacity: 0.4; cursor: default; transform: none; box-shadow: none; }
+
+    /* EMPTY STATE */
+    .empty-state {
+      text-align: center;
+      padding: 80px 20px;
+      color: var(--text3);
+    }
+    .empty-icon { font-size: 48px; margin-bottom: 16px; }
+    .empty-state h3 { font-size: 18px; color: var(--text2); margin-bottom: 8px; font-family: 'Syne', sans-serif; }
+    .empty-state p { font-size: 13px; font-family: 'DM Mono', monospace; }
+
+    /* TABS */
+    .tabs { display: flex; gap: 4px; margin-bottom: 24px; border-bottom: 1px solid var(--border); padding-bottom: 0; }
+    .tab {
+      padding: 10px 20px;
+      border: none;
+      background: none;
+      color: var(--text2);
+      cursor: pointer;
+      font-family: 'Syne', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: all 0.2s;
+    }
+    .tab.active { color: var(--text); border-bottom-color: var(--accent); }
+    .tab:hover { color: var(--text); }
+
+    /* ALERT */
+    .alert {
+      padding: 12px 16px;
+      border-radius: 10px;
+      font-size: 12px;
+      margin-bottom: 16px;
+      font-family: 'DM Mono', monospace;
+      line-height: 1.5;
+    }
+    .alert.info { background: rgba(0,153,255,0.08); border: 1px solid rgba(0,153,255,0.2); color: #60a5fa; }
+    .alert.warn { background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.2); color: var(--yellow); }
+
+    /* PROGRESS BAR */
+    .progress-bar { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; margin-top: 6px; }
+    .progress-fill { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
+
+    /* SUMMARY ROW */
+    .summary-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    @media (max-width: 800px) { .summary-row { grid-template-columns: 1fr; } }
+
+    /* FOOTER */
+    .footer {
+      border-top: 1px solid var(--border);
+      padding: 24px 0;
+      font-size: 11px;
+      color: var(--text3);
+      font-family: 'DM Mono', monospace;
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    /* SCROLLBAR */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg2); }
+    ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+    .tag {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 8px; border-radius: 4px; font-size: 10px;
+      font-family: 'DM Mono', monospace;
+    }
+    .tag.green { background: rgba(52,211,153,0.1); color: var(--green); }
+    .tag.red { background: rgba(248,113,113,0.1); color: var(--red); }
+    .tag.yellow { background: rgba(251,191,36,0.1); color: var(--yellow); }
+    .tag.gray { background: rgba(74,85,104,0.2); color: var(--text2); }
+
+    /* TOOLTIP-LIKE TAX NOTE */
+    .tax-note {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 10px; color: var(--text3);
+      padding: 3px 8px;
+      border-radius: 4px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      font-family: 'DM Mono', monospace;
+    }
+    .tax-note span { color: var(--accent); }
+
+    .flex { display: flex; }
+    .gap-2 { gap: 8px; }
+    .gap-3 { gap: 12px; }
+    .items-center { align-items: center; }
+    .justify-between { justify-content: space-between; }
+    .wrap { flex-wrap: wrap; }
+    .mt-1 { margin-top: 4px; }
+    .mt-2 { margin-top: 8px; }
+    .mt-3 { margin-top: 12px; }
+    .mt-4 { margin-top: 16px; }
+    .mb-4 { margin-bottom: 16px; }
+
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useCallback, useMemo } = React;
+    // Recharts UMD exposes itself as window.Recharts
+    const RC = window.Recharts || {};
+    const BarChart = RC.BarChart;
+    const Bar = RC.Bar;
+    const XAxis = RC.XAxis;
+    const YAxis = RC.YAxis;
+    const CartesianGrid = RC.CartesianGrid;
+    const Tooltip = RC.Tooltip;
+    const Legend = RC.Legend;
+    const ResponsiveContainer = RC.ResponsiveContainer;
+    const PieChart = RC.PieChart;
+    const Pie = RC.Pie;
+    const Cell = RC.Cell;
+    const LineChart = RC.LineChart;
+    const Line = RC.Line;
+
+    // ============================================================
+    // CONSTANTS — Fiscal MX 2026 (LIF 2026) + Platform Fees
+    // ============================================================
+    const TAX_CONFIG = {
+      IVA_RATE: 0.16,                  // IVA general México 16%
+      IVA_RETENCION_FISICA: 0.08,      // 50% del IVA retenido p. físicas con RFC
+      ISR_RETENCION_2026: 0.025,       // LIF 2026: 2.5% ISR p. morales y físicas con RFC
+      // Cargo por venta ML (estimado Clásica autopartes ~17.5% promedio observado)
+      // El archivo ya trae el monto real; usamos el dato del reporte
+    };
+
+    const ML_VALID_SALE_STATES = [
+      'Entregado',
+      'Etiqueta impresa',
+      'Etiqueta lista para imprimir',
+      'En camino',
+      'Paquete de 2 productos',
+    ];
+
+    const ML_PENDING_STATES = [
+      'Mediación en espera de respuesta de Mercado Libre',
+      'Reclamo en espera de respuesta del comprador',
+    ];
+
+    const ML_RETURN_STATES = [
+      'Devolución en preparación sin costo de envío',
+    ];
+
+    const fmt = (v) => {
+      if (v === null || v === undefined || isNaN(v)) return '—';
+      return new Intl.NumberFormat('es-MX', {
+        style: 'currency', currency: 'MXN', minimumFractionDigits: 2
+      }).format(v);
+    };
+
+    const pct = (v) => {
+      if (v === null || v === undefined || isNaN(v)) return '—';
+      return (v * 100).toFixed(1) + '%';
+    };
+
+    const CHART_COLORS = ['#00e5a0','#0099ff','#ff6b35','#c084fc','#fbbf24','#34d399'];
+
+    // ============================================================
+    // FILE PARSERS
+    // ============================================================
+    function parsePriceList(data) {
+      const wb = XLSX.read(data, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+      const map = {};
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        if (!row[0] || typeof row[0] !== 'string') continue;
+        const sku = row[0].toString().trim();
+        const desc = row[1] ? row[1].toString().trim() : '';
+        const precioSinIVA = parseFloat(row[2]) || 0;
+        const precioConIVA = parseFloat(row[3]) || 0;
+        if (sku && precioSinIVA > 0) {
+          map[sku] = { sku, desc, precioSinIVA, precioConIVA: precioConIVA || precioSinIVA * 1.16 };
+        }
+      }
+      return map;
+    }
+
+    function parseMLReport(data) {
+      const wb = XLSX.read(data, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { defval: null });
+      const sales = [];
+      for (const row of rows) {
+        const estado = (row['Estado'] || '').toString().trim();
+        const sku = (row['SKU'] || '').toString().trim();
+        const ingresos = parseFloat(row['Ingresos por productos (MXN)']) || 0;
+        const cargo = parseFloat(row['Cargo por venta e impuestos (MXN)']) || 0;
+        const costoEnvio = parseFloat(row['Costos de envío (MXN)']) || 0;
+        const ingresosEnvio = parseFloat(row['Ingresos por envío (MXN)']) || 0;
+        const total = parseFloat(row['Total (MXN)']) || 0;
+        const unidades = parseFloat(row['Unidades']) || 0;
+        const precioUnit = parseFloat(row['Precio unitario de venta de la publicación (MXN)']) || 0;
+        const numVenta = row['# de venta'] ? row['# de venta'].toString() : '';
+        const isPaquete = estado.toLowerCase().startsWith('paquete de');
+        const isReturn = ML_RETURN_STATES.some(s => estado === s);
+        const isPending = ML_PENDING_STATES.some(s => estado === s);
+        const isValid = ML_VALID_SALE_STATES.some(s => estado === s) || isPaquete;
+
+        if (ingresos === 0 && total === 0 && !isPaquete) continue;
+
+        sales.push({
+          numVenta, estado, sku, ingresos, cargo, costoEnvio, ingresosEnvio,
+          total, unidades, precioUnit, isPaquete, isReturn, isPending, isValid,
+          platform: 'ML'
+        });
+      }
+      return sales;
+    }
+
+    function parseAmazonReport(data) {
+      const wb = XLSX.read(data, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { defval: null });
+      const sales = [];
+      for (const row of rows) {
+        const msku = (row['MSKU'] || '').toString().trim();
+        const unidadesNetas = parseFloat(row['Unidades netas vendidas']) || 0;
+        const ventas = parseFloat(row['Ventas netas']) || 0;
+        const tarifaRef = parseFloat(row['Tarifa por referencia en total']) || 0;
+        const ingresosNetos = parseFloat(row['Ingresos netos en total']) || 0;
+        const precioMedio = parseFloat(row['Precio de venta medio']) || 0;
+        const unidadesVendidas = parseFloat(row['Unidades vendidas']) || 0;
+        const unidadesDevueltas = parseFloat(row['Unidades devueltas']) || 0;
+
+        if (unidadesVendidas > 0 || unidadesNetas > 0) {
+          sales.push({
+            sku: msku, unidadesNetas, ventas, tarifaRef,
+            ingresosNetos, precioMedio, unidadesVendidas, unidadesDevueltas,
+            platform: 'AMZ'
+          });
+        }
+      }
+      return sales;
+    }
+
+    // ============================================================
+    // CALCULATIONS
+    // ============================================================
+    function calcMLSummary(mlSales, priceMap) {
+      let ingresoBruto = 0, cargoComisiones = 0, costoEnvio = 0, totalNeto = 0;
+      let unidades = 0, cogs = 0;
+      const skuBreakdown = {};
+
+      for (const s of mlSales) {
+        if (!s.isValid || s.isReturn) continue;
+        ingresoBruto += s.ingresos;
+        cargoComisiones += Math.abs(s.cargo);
+        costoEnvio += Math.abs(s.costoEnvio);
+        totalNeto += s.total;
+        unidades += s.unidades || 0;
+
+        if (s.sku && s.sku !== '') {
+          const price = priceMap[s.sku];
+          const costUnit = price ? price.precioSinIVA : 0;
+          const cogsPiece = costUnit * (s.unidades || 1);
+          cogs += cogsPiece;
+          if (!skuBreakdown[s.sku]) {
+            skuBreakdown[s.sku] = {
+              sku: s.sku,
+              desc: price ? price.desc : '—',
+              unidades: 0, ingresos: 0, comision: 0, envio: 0, neto: 0,
+              cogs: 0, costoUnit: costUnit
+            };
+          }
+          skuBreakdown[s.sku].unidades += s.unidades || 0;
+          skuBreakdown[s.sku].ingresos += s.ingresos;
+          skuBreakdown[s.sku].comision += Math.abs(s.cargo);
+          skuBreakdown[s.sku].envio += Math.abs(s.costoEnvio);
+          skuBreakdown[s.sku].neto += s.total;
+          skuBreakdown[s.sku].cogs += cogsPiece;
+        }
+      }
+
+      // Retenciones fiscales ya aplicadas en el cargo por venta
+      // ML retiene: comisión + IVA de comisión (ya incluido en "cargo por venta e impuestos")
+      // La retención ISR 2.5% se aplica sobre ingresos brutos
+      const retencionISR = ingresoBruto * TAX_CONFIG.ISR_RETENCION_2026;
+
+      return {
+        ingresoBruto, cargoComisiones, costoEnvio, totalNeto,
+        unidades, cogs, retencionISR, skuBreakdown: Object.values(skuBreakdown)
+      };
+    }
+
+    function calcAMZSummary(amzSales, priceMap) {
+      let ventasBrutas = 0, tarifaRef = 0, ingresosNetos = 0;
+      let unidades = 0, cogs = 0;
+      const skuBreakdown = {};
+
+      for (const s of amzSales) {
+        ventasBrutas += s.ventas;
+        tarifaRef += s.tarifaRef;
+        ingresosNetos += s.ingresosNetos;
+        unidades += s.unidadesNetas;
+
+        const price = priceMap[s.sku];
+        const costUnit = price ? price.precioSinIVA : 0;
+        const cogsPiece = costUnit * s.unidadesNetas;
+        cogs += cogsPiece;
+
+        if (!skuBreakdown[s.sku]) {
+          skuBreakdown[s.sku] = {
+            sku: s.sku,
+            desc: price ? price.desc : '—',
+            unidades: 0, ventas: 0, tarifa: 0, neto: 0,
+            cogs: 0, costoUnit: costUnit
+          };
+        }
+        skuBreakdown[s.sku].unidades += s.unidadesNetas;
+        skuBreakdown[s.sku].ventas += s.ventas;
+        skuBreakdown[s.sku].tarifa += s.tarifaRef;
+        skuBreakdown[s.sku].neto += s.ingresosNetos;
+        skuBreakdown[s.sku].cogs += cogsPiece;
+      }
+
+      // Amazon retiene tarifa por referencia (ya en el reporte)
+      // ISR 2.5% sobre ventas brutas (LIF 2026 para personas morales)
+      const retencionISR = ventasBrutas * TAX_CONFIG.ISR_RETENCION_2026;
+
+      return {
+        ventasBrutas, tarifaRef, ingresosNetos,
+        unidades, cogs, retencionISR,
+        skuBreakdown: Object.values(skuBreakdown)
+      };
+    }
+
+    // ============================================================
+    // COMPONENTS
+    // ============================================================
+    function UploadCard({ type, label, desc, hint, icon, color, file, onFile }) {
+      const handleDrop = useCallback((e) => {
+        e.preventDefault();
+        const f = e.dataTransfer.files[0];
+        if (f) onFile(f);
+      }, [onFile]);
+
+      const handleChange = (e) => {
+        if (e.target.files[0]) onFile(e.target.files[0]);
+      };
+
+      return (
+        <label
+          className={`upload-card ${type} ${file ? 'loaded' : ''}`}
+          onDragOver={e => e.preventDefault()}
+          onDrop={handleDrop}
+        >
+          <input type="file" accept=".xlsx,.csv" onChange={handleChange} />
+          <div className="upload-icon" style={{ color: color }}>{icon}</div>
+          <h3>{label}</h3>
+          <p>{desc}</p>
+          <div className="upload-hint">{hint}</div>
+          {file && (
+            <div className="upload-status">
+              <div className="dot" />
+              {file.name}
+            </div>
+          )}
+          {!file && (
+            <div className="upload-hint" style={{ marginTop: 12 }}>
+              Arrastra el archivo o haz clic
+            </div>
+          )}
+        </label>
+      );
+    }
+
+    function KPICard({ label, value, sub, subClass, accent, mono }) {
+      return (
+        <div className={`kpi-card ${accent}`}>
+          <div className="kpi-label">{label}</div>
+          <div className={`kpi-value ${mono ? 'mono' : ''}`}>{value}</div>
+          {sub && <div className={`kpi-sub ${subClass || ''}`}>{sub}</div>}
+        </div>
+      );
+    }
+
+    const CustomTooltip = ({ active, payload, label }) => {
+      if (!active || !payload || !payload.length) return null;
+      return (
+        <div style={{
+          background: '#181b22', border: '1px solid #23272f',
+          borderRadius: 8, padding: '10px 14px', fontSize: 12,
+          fontFamily: 'DM Mono, monospace'
+        }}>
+          <div style={{ color: '#8892a4', marginBottom: 4 }}>{label}</div>
+          {payload.map((p, i) => (
+            <div key={i} style={{ color: p.color, marginTop: 2 }}>
+              {p.name}: {fmt(p.value)}
+            </div>
+          ))}
+        </div>
+      );
+    };
+
+    // ============================================================
+    // MAIN APP
+    // ============================================================
+    function App() {
+      const [mlFile, setMlFile] = useState(null);
+      const [amzFile, setAmzFile] = useState(null);
+      const [pricesFile, setPricesFile] = useState(null);
+      const [mlData, setMlData] = useState(null);
+      const [amzData, setAmzData] = useState(null);
+      const [priceMap, setPriceMap] = useState({});
+      const [fixedCosts, setFixedCosts] = useState([
+        { id: 1, name: 'Renta / Almacén', amount: 0 },
+        { id: 2, name: 'Sueldos', amount: 0 },
+        { id: 3, name: 'Servicios', amount: 0 },
+      ]);
+      const [newCostName, setNewCostName] = useState('');
+      const [newCostAmount, setNewCostAmount] = useState('');
+      const [activeTab, setActiveTab] = useState('general');
+      const [isExporting, setIsExporting] = useState(false);
+
+      const readFile = (file, cb) => {
+        const reader = new FileReader();
+        reader.onload = (e) => cb(new Uint8Array(e.target.result));
+        reader.readAsArrayBuffer(file);
+      };
+
+      const handleML = useCallback((f) => {
+        setMlFile(f);
+        readFile(f, (data) => setMlData(parseMLReport(data)));
+      }, []);
+
+      const handleAMZ = useCallback((f) => {
+        setAmzFile(f);
+        readFile(f, (data) => setAmzData(parseAmazonReport(data)));
+      }, []);
+
+      const handlePrices = useCallback((f) => {
+        setPricesFile(f);
+        readFile(f, (data) => setPriceMap(parsePriceList(data)));
+      }, []);
+
+      const mlSummary = useMemo(() => mlData ? calcMLSummary(mlData, priceMap) : null, [mlData, priceMap]);
+      const amzSummary = useMemo(() => amzData ? calcAMZSummary(amzData, priceMap) : null, [amzData, priceMap]);
+
+      const hasData = mlSummary || amzSummary;
+
+      const totalFixedCosts = fixedCosts.reduce((s, c) => s + (parseFloat(c.amount) || 0), 0);
+
+      // Combined calculations
+      const combined = useMemo(() => {
+        if (!hasData) return null;
+        const ingresoBrutoML = mlSummary?.ingresoBruto || 0;
+        const ingresoBrutoAMZ = amzSummary?.ventasBrutas || 0;
+        const ingresoBrutoTotal = ingresoBrutoML + ingresoBrutoAMZ;
+
+        const comisionesML = mlSummary?.cargoComisiones || 0;
+        const envioML = mlSummary?.costoEnvio || 0;
+        const tarifaAMZ = amzSummary?.tarifaRef || 0;
+
+        const retencionISRTotal = (mlSummary?.retencionISR || 0) + (amzSummary?.retencionISR || 0);
+
+        const netoPlataformas = (mlSummary?.totalNeto || 0) + (amzSummary?.ingresosNetos || 0);
+
+        const cogsTotal = (mlSummary?.cogs || 0) + (amzSummary?.cogs || 0);
+
+        const utilidadBruta = netoPlataformas - cogsTotal;
+        const utilidadOperativa = utilidadBruta - totalFixedCosts;
+
+        const margenBruto = ingresoBrutoTotal > 0 ? utilidadBruta / ingresoBrutoTotal : 0;
+        const margenOp = ingresoBrutoTotal > 0 ? utilidadOperativa / ingresoBrutoTotal : 0;
+
+        const unidadesTotal = (mlSummary?.unidades || 0) + (amzSummary?.unidades || 0);
+        const ticketMedio = unidadesTotal > 0 ? ingresoBrutoTotal / unidadesTotal : 0;
+
+        return {
+          ingresoBrutoTotal, ingresoBrutoML, ingresoBrutoAMZ,
+          comisionesML, envioML, tarifaAMZ,
+          retencionISRTotal, netoPlataformas,
+          cogsTotal, utilidadBruta, utilidadOperativa,
+          margenBruto, margenOp,
+          unidadesTotal, ticketMedio,
+          totalCargosPlatformas: comisionesML + envioML + tarifaAMZ
+        };
+      }, [mlSummary, amzSummary, totalFixedCosts, hasData]);
+
+      const addFixedCost = () => {
+        if (!newCostName || !newCostAmount) return;
+        setFixedCosts(prev => [...prev, {
+          id: Date.now(),
+          name: newCostName,
+          amount: parseFloat(newCostAmount) || 0
+        }]);
+        setNewCostName('');
+        setNewCostAmount('');
+      };
+
+      const removeFixedCost = (id) => setFixedCosts(prev => prev.filter(c => c.id !== id));
+      const updateFixedCost = (id, field, val) => {
+        setFixedCosts(prev => prev.map(c => c.id === id ? { ...c, [field]: val } : c));
+      };
+
+      // Chart data
+      const channelData = combined ? [
+        { name: 'Mercado Libre', ingresos: combined.ingresoBrutoML, cargos: combined.comisionesML + combined.envioML },
+        { name: 'Amazon', ingresos: combined.ingresoBrutoAMZ, cargos: combined.tarifaAMZ },
+      ] : [];
+
+      const pnlChartData = combined ? [
+        { name: 'Ingreso Bruto', value: combined.ingresoBrutoTotal },
+        { name: 'Neto Plataformas', value: combined.netoPlataformas },
+        { name: 'COGS', value: combined.cogsTotal },
+        { name: 'Util. Bruta', value: combined.utilidadBruta },
+        { name: 'Util. Operativa', value: combined.utilidadOperativa },
+      ] : [];
+
+      const pieData = combined ? [
+        { name: 'Neto para vendedor', value: Math.max(0, combined.netoPlataformas) },
+        { name: 'Comisiones ML', value: combined.comisionesML + combined.envioML },
+        { name: 'Tarifa AMZ', value: combined.tarifaAMZ },
+        { name: 'COGS', value: combined.cogsTotal },
+        { name: 'Gastos fijos', value: totalFixedCosts },
+      ].filter(d => d.value > 0) : [];
+
+      // Export to Excel
+      const exportExcel = () => {
+        setIsExporting(true);
+        setTimeout(() => {
+          try {
+            const wb = XLSX.utils.book_new();
+
+            // Sheet 1: Resumen General
+            const resumenData = [
+              ['DASHBOARD FINANCIERO - MARKETPLACES MX', '', '', ''],
+              ['Generado:', new Date().toLocaleDateString('es-MX'), '', ''],
+              ['', '', '', ''],
+              ['ESTADO DE RESULTADOS', '', '', ''],
+              ['', '', '', ''],
+              ['INGRESOS', '', '', ''],
+              ['Ingresos Brutos Mercado Libre', combined?.ingresoBrutoML || 0, '', ''],
+              ['Ingresos Brutos Amazon', combined?.ingresoBrutoAMZ || 0, '', ''],
+              ['TOTAL INGRESOS BRUTOS', combined?.ingresoBrutoTotal || 0, '', ''],
+              ['', '', '', ''],
+              ['CARGOS DE PLATAFORMAS', '', '', ''],
+              ['Comisiones Mercado Libre', -(combined?.comisionesML || 0), '', ''],
+              ['Costos de Envío ML', -(combined?.envioML || 0), '', ''],
+              ['Tarifas por Referencia Amazon', -(combined?.tarifaAMZ || 0), '', ''],
+              ['TOTAL CARGOS PLATAFORMAS', -(combined?.totalCargosPlatformas || 0), '', ''],
+              ['', '', '', ''],
+              ['NETO RECIBIDO DE PLATAFORMAS', combined?.netoPlataformas || 0, '', ''],
+              ['', '', '', ''],
+              ['COSTO DE VENTAS', '', '', ''],
+              ['Costo de mercancía vendida (sin IVA)', -(combined?.cogsTotal || 0), '', ''],
+              ['', '', '', ''],
+              ['UTILIDAD BRUTA', combined?.utilidadBruta || 0, '', `Margen: ${pct(combined?.margenBruto)}`],
+              ['', '', '', ''],
+              ['GASTOS FIJOS', '', '', ''],
+              ...fixedCosts.map(c => [c.name, -(parseFloat(c.amount) || 0), '', '']),
+              ['TOTAL GASTOS FIJOS', -totalFixedCosts, '', ''],
+              ['', '', '', ''],
+              ['UTILIDAD OPERATIVA (EBIT)', combined?.utilidadOperativa || 0, '', `Margen: ${pct(combined?.margenOp)}`],
+              ['', '', '', ''],
+              ['RETENCIONES FISCALES (Referencia)', '', '', ''],
+              ['ISR Retenido ML (2.5% LIF 2026)', -(mlSummary?.retencionISR || 0), '', ''],
+              ['ISR Retenido Amazon (2.5% LIF 2026)', -(amzSummary?.retencionISR || 0), '', ''],
+              ['TOTAL RETENCIONES ISR', -(combined?.retencionISRTotal || 0), '', ''],
+            ];
+            const ws1 = XLSX.utils.aoa_to_sheet(resumenData);
+            XLSX.utils.book_append_sheet(wb, ws1, 'Estado de Resultados');
+
+            // Sheet 2: ML Detalle
+            if (mlSummary?.skuBreakdown?.length > 0) {
+              const mlHeaders = ['SKU','Descripción','Unidades','Ingresos Brutos','Comisión+Cargo','Costo Envío','Total Neto','COGS (S/IVA)','Margen Bruto'];
+              const mlRows = mlSummary.skuBreakdown.map(s => [
+                s.sku, s.desc, s.unidades, s.ingresos, s.comision, s.envio, s.neto, s.cogs,
+                s.neto > 0 ? ((s.neto - s.cogs) / s.neto) : 0
+              ]);
+              const ws2 = XLSX.utils.aoa_to_sheet([mlHeaders, ...mlRows]);
+              XLSX.utils.book_append_sheet(wb, ws2, 'Mercado Libre SKUs');
+            }
+
+            // Sheet 3: Amazon Detalle
+            if (amzSummary?.skuBreakdown?.length > 0) {
+              const amzHeaders = ['MSKU','Descripción','Unidades Netas','Ventas Brutas','Tarifa Referencia','Ingresos Netos','COGS (S/IVA)','Margen Bruto'];
+              const amzRows = amzSummary.skuBreakdown.map(s => [
+                s.sku, s.desc, s.unidades, s.ventas, s.tarifa, s.neto, s.cogs,
+                s.neto > 0 ? ((s.neto - s.cogs) / s.neto) : 0
+              ]);
+              const ws3 = XLSX.utils.aoa_to_sheet([amzHeaders, ...amzRows]);
+              XLSX.utils.book_append_sheet(wb, ws3, 'Amazon SKUs');
+            }
+
+            // Sheet 4: Indicadores
+            const kpisData = [
+              ['INDICADORES CLAVE', ''],
+              ['Unidades totales vendidas', combined?.unidadesTotal || 0],
+              ['Ticket promedio por unidad', combined?.ticketMedio || 0],
+              ['Margen Bruto', pct(combined?.margenBruto)],
+              ['Margen Operativo', pct(combined?.margenOp)],
+              ['', ''],
+              ['SUPUESTOS FISCALES APLICADOS', ''],
+              ['IVA General MX', '16%'],
+              ['ISR Retención Plataformas (LIF 2026)', '2.5% sobre ingresos brutos'],
+              ['IVA Retención Plataformas (p. físicas con RFC)', '8% (50% del IVA)'],
+              ['Costo mercancía: precio SIN IVA de lista', 'Correcto para p. morales que acreditan IVA'],
+            ];
+            const ws4 = XLSX.utils.aoa_to_sheet(kpisData);
+            XLSX.utils.book_append_sheet(wb, ws4, 'Indicadores y Supuestos');
+
+            XLSX.writeFile(wb, `Reporte_Financiero_Marketplaces_${new Date().toISOString().split('T')[0]}.xlsx`);
+          } catch(e) {
+            console.error(e);
+          }
+          setIsExporting(false);
+        }, 100);
+      };
+
+      const loaded = { ml: !!mlSummary, amz: !!amzSummary, prices: Object.keys(priceMap).length > 0 };
+
+      return (
+        <>
+          {/* HEADER */}
+          <header className="header">
+            <div className="container">
+              <div className="header-inner">
+                <div className="logo-mark">FM</div>
+                <h1>Dashboard Financiero · Marketplaces MX</h1>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginLeft: 'auto' }}>
+                  <span className="fiscal-badge">LIF 2026</span>
+                  <span className="header-subtitle">ISR 2.5% · IVA 8% (retención)</span>
+                </div>
+              </div>
+            </div>
+          </header>
+
+          {/* UPLOAD SECTION */}
+          <section className="upload-section">
+            <div className="container">
+              <div className="section-label">// Carga de archivos</div>
+              <h2 className="section-title">Importa tus reportes</h2>
+              <p className="section-desc">Carga los tres archivos para obtener el análisis financiero consolidado. Los datos se procesan localmente en tu navegador.</p>
+
+              <div className="upload-grid">
+                <UploadCard
+                  type="ml" label="Reporte Mercado Libre"
+                  desc="Reporte de ventas MX (Mercado Libre / Mercado Shops). Incluye ventas individuales, paquetes, estados y retenciones."
+                  hint="Formato: .xlsx"
+                  icon="🟢" color="var(--accent)"
+                  file={mlFile} onFile={handleML}
+                />
+                <UploadCard
+                  type="amz" label="Reporte Amazon MX"
+                  desc='Reporte "Aspectos económicos del SKU". Incluye ventas netas, tarifas por referencia e ingresos netos por MSKU.'
+                  hint="Formato: .csv"
+                  icon="🟠" color="#ff9900"
+                  file={amzFile} onFile={handleAMZ}
+                />
+                <UploadCard
+                  type="prices" label="Lista de Precios"
+                  desc="Tu catálogo con SKU, descripción y precio de compra (con y sin IVA). Se usa para calcular el COGS."
+                  hint="Formato: .xlsx"
+                  icon="🟣" color="var(--accent4)"
+                  file={pricesFile} onFile={handlePrices}
+                />
+              </div>
+
+              <div className="disclaimer">
+                <strong>⚖️ Supuestos fiscales aplicados (LIF 2026 México):</strong>
+                {' '}Retención ISR <strong>2.5%</strong> sobre ingresos brutos (personas morales/físicas con RFC válido).
+                Retención IVA <strong>8%</strong> (50% del 16% general, personas físicas con RFC).
+                El COGS se calcula usando el precio <strong>sin IVA</strong> de tu lista de precios, ya que como contribuyente acreditas el IVA pagado a tu proveedor.
+                Las comisiones de Mercado Libre ya incluyen el IVA aplicable y están tomadas directamente del reporte.
+                La tarifa Amazon es la "Tarifa por referencia" del reporte SKU económico.
+                <br/><br/>
+                <strong>ℹ️ Estados ML procesados como ventas:</strong>{' '}
+                Entregado, Etiqueta impresa, Etiqueta lista para imprimir, En camino, Paquetes de varios productos.
+                <strong> Excluidos:</strong> Devoluciones. <strong>Pendientes:</strong> Mediaciones y reclamos se muestran como nota.
+              </div>
+            </div>
+          </section>
+
+          <hr className="divider" />
+
+          {/* DASHBOARD */}
+          <section className="dashboard">
+            <div className="container">
+
+              {!hasData ? (
+                <div className="empty-state">
+                  <div className="empty-icon">📊</div>
+                  <h3>Sin datos cargados</h3>
+                  <p>Sube al menos un reporte de ventas (ML o Amazon) para ver el análisis</p>
+                </div>
+              ) : (
+                <>
+                  <div className="dashboard-header">
+                    <div>
+                      <div className="section-label">// Análisis</div>
+                      <h2 className="section-title" style={{ fontSize: 22 }}>Estado Financiero Consolidado</h2>
+                    </div>
+                    <button
+                      className="export-btn"
+                      onClick={exportExcel}
+                      disabled={isExporting}
+                    >
+                      {isExporting ? '⏳ Exportando...' : '⬇️ Descargar Excel'}
+                    </button>
+                  </div>
+
+                  {/* FISCAL NOTES */}
+                  <div className="alert info" style={{ marginBottom: 16 }}>
+                    <strong>Fiscal 2026:</strong> Las plataformas retienen ISR 2.5% y en algunos casos IVA. Las cifras de "neto recibido" reflejan lo que la plataforma transfiere a tu cuenta. Las retenciones son acreditables en tus pagos provisionales mensuales.
+                  </div>
+
+                  {/* TABS */}
+                  <div className="tabs">
+                    {['general','mercadolibre','amazon','estado-resultados'].map(t => (
+                      <button key={t} className={`tab ${activeTab === t ? 'active' : ''}`} onClick={() => setActiveTab(t)}>
+                        {{ general: '📈 General', mercadolibre: '🟢 Mercado Libre', amazon: '🟠 Amazon', 'estado-resultados': '📋 Estado de Resultados' }[t]}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* GENERAL TAB */}
+                  {activeTab === 'general' && combined && (
+                    <>
+                      <div className="kpi-grid">
+                        <KPICard label="Ingresos Brutos Totales" value={fmt(combined.ingresoBrutoTotal)} accent="accent1" mono sub={`${combined.unidadesTotal} unidades`} />
+                        <KPICard label="Neto Recibido de Plataformas" value={fmt(combined.netoPlataformas)} accent="accent2" mono sub={`Después de comisiones y envíos`} />
+                        <KPICard label="Utilidad Bruta" value={fmt(combined.utilidadBruta)} accent={combined.utilidadBruta >= 0 ? 'accent1' : 'red'} mono sub={`Margen: ${pct(combined.margenBruto)}`} subClass={combined.margenBruto >= 0 ? 'pos' : 'neg'} />
+                        <KPICard label="Utilidad Operativa" value={fmt(combined.utilidadOperativa)} accent={combined.utilidadOperativa >= 0 ? 'accent1' : 'red'} mono sub={`Margen op: ${pct(combined.margenOp)}`} subClass={combined.utilidadOperativa >= 0 ? 'pos' : 'neg'} />
+                      </div>
+
+                      <div className="kpi-grid" style={{ gridTemplateColumns: 'repeat(4,1fr)' }}>
+                        <KPICard label="COGS Total (sin IVA)" value={fmt(combined.cogsTotal)} accent="yellow" mono sub="Costo de mercancía vendida" />
+                        <KPICard label="Cargos de Plataformas" value={fmt(combined.totalCargosPlatformas)} accent="accent3" mono sub="Comisiones + envíos + tarifas" />
+                        <KPICard label="Retención ISR (2.5%)" value={fmt(combined.retencionISRTotal)} accent="accent4" mono sub="LIF 2026 · Acreditable" />
+                        <KPICard label="Ticket Promedio" value={fmt(combined.ticketMedio)} accent="accent2" mono sub={`${combined.unidadesTotal} unidades totales`} />
+                      </div>
+
+                      <div className="chart-grid">
+                        <div className="chart-card">
+                          <div className="chart-title">Ingresos vs Cargos por Canal</div>
+                          <div className="chart-sub">Comparativo de ingresos brutos y cargos totales</div>
+                          <ResponsiveContainer width="100%" height={280}>
+                            <BarChart data={channelData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="#23272f" />
+                              <XAxis dataKey="name" tick={{ fill: '#8892a4', fontSize: 12 }} />
+                              <YAxis tickFormatter={v => `$${(v/1000).toFixed(0)}k`} tick={{ fill: '#8892a4', fontSize: 11 }} />
+                              <Tooltip content={<CustomTooltip />} />
+                              <Legend wrapperStyle={{ fontSize: 12, color: '#8892a4' }} />
+                              <Bar dataKey="ingresos" name="Ingresos Brutos" fill="#00e5a0" radius={[4,4,0,0]} />
+                              <Bar dataKey="cargos" name="Cargos/Comisiones" fill="#ff6b35" radius={[4,4,0,0]} />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+
+                        <div className="chart-card">
+                          <div className="chart-title">Distribución del Ingreso</div>
+                          <div className="chart-sub">Destino de cada peso de venta</div>
+                          <ResponsiveContainer width="100%" height={280}>
+                            <PieChart>
+                              <Pie data={pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={100}
+                                dataKey="value" nameKey="name" paddingAngle={3}>
+                                {pieData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                              </Pie>
+                              <Tooltip formatter={(v) => fmt(v)} contentStyle={{ background: '#181b22', border: '1px solid #23272f', borderRadius: 8, fontSize: 12 }} />
+                              <Legend wrapperStyle={{ fontSize: 11, color: '#8892a4' }} />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </div>
+
+                      <div className="chart-card" style={{ marginBottom: 24 }}>
+                        <div className="chart-title">Cascada P&L</div>
+                        <div className="chart-sub">De ingresos brutos a utilidad operativa</div>
+                        <ResponsiveContainer width="100%" height={240}>
+                          <BarChart data={pnlChartData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#23272f" />
+                            <XAxis dataKey="name" tick={{ fill: '#8892a4', fontSize: 11 }} />
+                            <YAxis tickFormatter={v => `$${(v/1000).toFixed(0)}k`} tick={{ fill: '#8892a4', fontSize: 11 }} />
+                            <Tooltip content={<CustomTooltip />} />
+                            <Bar dataKey="value" name="MXN" radius={[4,4,0,0]}>
+                              {pnlChartData.map((d, i) => (
+                                <Cell key={i} fill={d.value >= 0 ? CHART_COLORS[i % 4] : '#f87171'} />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </>
+                  )}
+
+                  {/* ML TAB */}
+                  {activeTab === 'mercadolibre' && (
+                    <>
+                      {!mlSummary ? (
+                        <div className="empty-state">
+                          <div className="empty-icon">🟢</div>
+                          <h3>No hay datos de Mercado Libre</h3>
+                          <p>Sube el reporte de ventas de ML para ver este análisis</p>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="kpi-grid">
+                            <KPICard label="Ingresos Brutos ML" value={fmt(mlSummary.ingresoBruto)} accent="accent1" mono />
+                            <KPICard label="Comisiones + Cargos" value={fmt(mlSummary.cargoComisiones)} accent="accent3" mono sub="Incluye IVA de comisión" />
+                            <KPICard label="Costos de Envío" value={fmt(mlSummary.costoEnvio)} accent="yellow" mono />
+                            <KPICard label="Total Neto Recibido" value={fmt(mlSummary.totalNeto)} accent="accent2" mono />
+                          </div>
+                          <div className="kpi-grid" style={{ gridTemplateColumns: 'repeat(3,1fr)', marginBottom: 24 }}>
+                            <KPICard label="COGS ML (sin IVA)" value={fmt(mlSummary.cogs)} accent="yellow" mono sub="Basado en lista de precios" />
+                            <KPICard label="Utilidad Bruta ML" value={fmt(mlSummary.totalNeto - mlSummary.cogs)} accent={mlSummary.totalNeto - mlSummary.cogs >= 0 ? 'accent1' : 'red'} mono />
+                            <KPICard label="Retención ISR (2.5%)" value={fmt(mlSummary.retencionISR)} accent="accent4" mono sub="LIF 2026 · acreditable" />
+                          </div>
+
+                          {mlData && (() => {
+                            const pendientes = mlData.filter(s => s.isPending);
+                            const devoluciones = mlData.filter(s => s.isReturn);
+                            return (
+                              <>
+                                {pendientes.length > 0 && (
+                                  <div className="alert warn">
+                                    ⚠️ <strong>{pendientes.length} venta(s) en mediación/reclamo</strong> — Total potencial: {fmt(pendientes.reduce((s,r)=>s+r.total,0))}. Estas órdenes se excluyen del cálculo hasta resolverse.
+                                  </div>
+                                )}
+                                {devoluciones.length > 0 && (
+                                  <div className="alert warn">
+                                    🔄 <strong>{devoluciones.length} devolución(es) en proceso</strong> — Se excluyen del cálculo de ventas. Monitorear impacto en tu reputación.
+                                  </div>
+                                )}
+                              </>
+                            );
+                          })()}
+
+                          <div className="table-card">
+                            <div className="chart-title" style={{ marginBottom: 4 }}>Detalle por SKU — Mercado Libre</div>
+                            <div className="chart-sub">Solo ventas concretadas o en proceso de entrega</div>
+                            <table>
+                              <thead>
+                                <tr>
+                                  <th>SKU</th>
+                                  <th>Descripción</th>
+                                  <th>Uds.</th>
+                                  <th>Ingreso Bruto</th>
+                                  <th>Comisión</th>
+                                  <th>Envío</th>
+                                  <th>Neto ML</th>
+                                  <th>COGS (S/IVA)</th>
+                                  <th>Margen</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {mlSummary.skuBreakdown.map(s => {
+                                  const margen = s.neto > 0 ? (s.neto - s.cogs) / s.neto : null;
+                                  return (
+                                    <tr key={s.sku}>
+                                      <td><span className="badge ml">{s.sku}</span></td>
+                                      <td style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--text2)' }}>{s.desc.length > 30 ? s.desc.slice(0,30)+'…' : s.desc}</td>
+                                      <td>{s.unidades}</td>
+                                      <td>{fmt(s.ingresos)}</td>
+                                      <td className="neg">{fmt(s.comision)}</td>
+                                      <td className="neg">{fmt(s.envio)}</td>
+                                      <td className="pos">{fmt(s.neto)}</td>
+                                      <td className="neutral">{s.cogs > 0 ? fmt(s.cogs) : <span className="tag gray">N/D</span>}</td>
+                                      <td>
+                                        {margen !== null ? (
+                                          <span className={margen >= 0 ? 'pos' : 'neg'}>{pct(margen)}</span>
+                                        ) : <span className="tag gray">N/D</span>}
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        </>
+                      )}
+                    </>
+                  )}
+
+                  {/* AMAZON TAB */}
+                  {activeTab === 'amazon' && (
+                    <>
+                      {!amzSummary ? (
+                        <div className="empty-state">
+                          <div className="empty-icon">🟠</div>
+                          <h3>No hay datos de Amazon</h3>
+                          <p>Sube el reporte CSV de Amazon para ver este análisis</p>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="kpi-grid">
+                            <KPICard label="Ventas Brutas Amazon" value={fmt(amzSummary.ventasBrutas)} accent="accent1" mono />
+                            <KPICard label="Tarifas por Referencia" value={fmt(amzSummary.tarifaRef)} accent="accent3" mono sub={`${pct(amzSummary.tarifaRef / amzSummary.ventasBrutas)} de ventas`} />
+                            <KPICard label="Ingresos Netos Amazon" value={fmt(amzSummary.ingresosNetos)} accent="accent2" mono />
+                            <KPICard label="Unidades Netas Vendidas" value={amzSummary.unidades} accent="yellow" />
+                          </div>
+                          <div className="kpi-grid" style={{ gridTemplateColumns: 'repeat(3,1fr)', marginBottom: 24 }}>
+                            <KPICard label="COGS Amazon (sin IVA)" value={fmt(amzSummary.cogs)} accent="yellow" mono />
+                            <KPICard label="Utilidad Bruta Amazon" value={fmt(amzSummary.ingresosNetos - amzSummary.cogs)} accent={amzSummary.ingresosNetos - amzSummary.cogs >= 0 ? 'accent1' : 'red'} mono />
+                            <KPICard label="Retención ISR (2.5%)" value={fmt(amzSummary.retencionISR)} accent="accent4" mono sub="LIF 2026 · acreditable" />
+                          </div>
+
+                          <div className="alert info">
+                            <strong>Amazon MX — Tarifa por referencia:</strong> Varía entre 8% y 15% del precio de venta según categoría (autopartes ~12%). Amazon también puede retener ISR 2.5% (LIF 2026). El reporte "Aspectos económicos del SKU" ya refleja los ingresos netos después de tarifas.
+                          </div>
+
+                          <div className="table-card">
+                            <div className="chart-title" style={{ marginBottom: 4 }}>Detalle por MSKU — Amazon</div>
+                            <div className="chart-sub">Unidades netas vendidas en el período</div>
+                            <table>
+                              <thead>
+                                <tr>
+                                  <th>MSKU</th>
+                                  <th>Descripción</th>
+                                  <th>Uds. Netas</th>
+                                  <th>Ventas Brutas</th>
+                                  <th>Tarifa Ref.</th>
+                                  <th>% Tarifa</th>
+                                  <th>Ingresos Netos</th>
+                                  <th>COGS (S/IVA)</th>
+                                  <th>Margen</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {amzSummary.skuBreakdown.map(s => {
+                                  const margen = s.neto > 0 ? (s.neto - s.cogs) / s.neto : null;
+                                  const pctTarifa = s.ventas > 0 ? s.tarifa / s.ventas : 0;
+                                  return (
+                                    <tr key={s.sku}>
+                                      <td><span className="badge amz">{s.sku}</span></td>
+                                      <td style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--text2)' }}>{s.desc.length > 30 ? s.desc.slice(0,30)+'…' : s.desc}</td>
+                                      <td>{s.unidades}</td>
+                                      <td>{fmt(s.ventas)}</td>
+                                      <td className="neg">{fmt(s.tarifa)}</td>
+                                      <td className="neutral">{pct(pctTarifa)}</td>
+                                      <td className="pos">{fmt(s.neto)}</td>
+                                      <td className="neutral">{s.cogs > 0 ? fmt(s.cogs) : <span className="tag gray">N/D</span>}</td>
+                                      <td>
+                                        {margen !== null ? (
+                                          <span className={margen >= 0 ? 'pos' : 'neg'}>{pct(margen)}</span>
+                                        ) : <span className="tag gray">N/D</span>}
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        </>
+                      )}
+                    </>
+                  )}
+
+                  {/* ESTADO DE RESULTADOS TAB */}
+                  {activeTab === 'estado-resultados' && combined && (
+                    <div className="pnl-grid">
+                      <div className="pnl-card">
+                        <div className="chart-title" style={{ marginBottom: 16 }}>📋 Estado de Resultados</div>
+
+                        <div className="pnl-section-header">INGRESOS</div>
+                        <div className="pnl-line subtotal">
+                          <span className="pnl-indent">Mercado Libre</span>
+                          <span>{fmt(combined.ingresoBrutoML)}</span>
+                        </div>
+                        <div className="pnl-line subtotal">
+                          <span className="pnl-indent">Amazon</span>
+                          <span>{fmt(combined.ingresoBrutoAMZ)}</span>
+                        </div>
+                        <div className="pnl-line" style={{ fontWeight: 600 }}>
+                          <span>INGRESOS BRUTOS TOTALES</span>
+                          <span className="pos">{fmt(combined.ingresoBrutoTotal)}</span>
+                        </div>
+
+                        <div className="pnl-section-header">CARGOS DE PLATAFORMAS</div>
+                        <div className="pnl-line subtotal">
+                          <span className="pnl-indent">Comisiones Mercado Libre</span>
+                          <span className="neg">({fmt(combined.comisionesML)})</span>
+                        </div>
+                        <div className="pnl-line subtotal">
+                          <span className="pnl-indent">Costos de Envío ML</span>
+                          <span className="neg">({fmt(combined.envioML)})</span>
+                        </div>
+                        <div className="pnl-line subtotal">
+                          <span className="pnl-indent">Tarifas por Referencia Amazon</span>
+                          <span className="neg">({fmt(combined.tarifaAMZ)})</span>
+                        </div>
+                        <div className="pnl-line" style={{ fontWeight: 600 }}>
+                          <span>NETO RECIBIDO DE PLATAFORMAS</span>
+                          <span className="pos">{fmt(combined.netoPlataformas)}</span>
+                        </div>
+
+                        <div className="pnl-section-header">COSTO DE VENTAS</div>
+                        <div className="pnl-line subtotal">
+                          <span className="pnl-indent">Costo mercancía (sin IVA)</span>
+                          <span className="neg">({fmt(combined.cogsTotal)})</span>
+                        </div>
+
+                        <div className="pnl-line total" style={{ borderTop: '2px solid var(--accent)', marginTop: 8, paddingTop: 12 }}>
+                          <span>UTILIDAD BRUTA</span>
+                          <span className={combined.utilidadBruta >= 0 ? 'pos' : 'neg'}>{fmt(combined.utilidadBruta)}</span>
+                        </div>
+                        <div className="pnl-line subtotal" style={{ fontSize: 11, color: 'var(--text3)' }}>
+                          <span>Margen Bruto</span>
+                          <span className={combined.margenBruto >= 0 ? 'pos' : 'neg'}>{pct(combined.margenBruto)}</span>
+                        </div>
+
+                        <div className="pnl-section-header">GASTOS DE OPERACIÓN</div>
+                        {fixedCosts.map(c => (
+                          <div key={c.id} className="pnl-line subtotal">
+                            <span className="pnl-indent">{c.name}</span>
+                            <span className="neg">({fmt(parseFloat(c.amount)||0)})</span>
+                          </div>
+                        ))}
+
+                        <div className="pnl-line total" style={{ borderTop: '2px solid var(--accent2)', marginTop: 8, paddingTop: 12 }}>
+                          <span>UTILIDAD OPERATIVA (EBIT)</span>
+                          <span className={combined.utilidadOperativa >= 0 ? 'pos' : 'neg'}>{fmt(combined.utilidadOperativa)}</span>
+                        </div>
+                        <div className="pnl-line subtotal" style={{ fontSize: 11, color: 'var(--text3)' }}>
+                          <span>Margen Operativo</span>
+                          <span className={combined.margenOp >= 0 ? 'pos' : 'neg'}>{pct(combined.margenOp)}</span>
+                        </div>
+
+                        <div className="pnl-section-header">RETENCIONES FISCALES (Referencia)</div>
+                        <div className="pnl-line subtotal">
+                          <span className="pnl-indent">ISR retenido ML (2.5%)</span>
+                          <span style={{ color: 'var(--accent4)' }}>({fmt(mlSummary?.retencionISR || 0)})</span>
+                        </div>
+                        <div className="pnl-line subtotal">
+                          <span className="pnl-indent">ISR retenido Amazon (2.5%)</span>
+                          <span style={{ color: 'var(--accent4)' }}>({fmt(amzSummary?.retencionISR || 0)})</span>
+                        </div>
+                        <div className="pnl-line subtotal" style={{ fontSize: 11 }}>
+                          <span className="pnl-indent" style={{ color: 'var(--text3)' }}>* Acreditables en pagos provisionales ISR</span>
+                        </div>
+                      </div>
+
+                      {/* FIXED COSTS EDITOR */}
+                      <div className="fixed-costs-section">
+                        <div className="chart-title" style={{ marginBottom: 4 }}>⚙️ Gastos Fijos / Variables</div>
+                        <div className="chart-sub">Ajusta los costos para actualizar el Estado de Resultados en tiempo real</div>
+
+                        {fixedCosts.map(c => (
+                          <div key={c.id} className="cost-item">
+                            <input
+                              className="cost-input" style={{ flex: 1, marginRight: 8 }}
+                              value={c.name}
+                              onChange={e => updateFixedCost(c.id, 'name', e.target.value)}
+                              placeholder="Nombre del gasto"
+                            />
+                            <input
+                              className="cost-input" style={{ width: 130 }}
+                              type="number" value={c.amount}
+                              onChange={e => updateFixedCost(c.id, 'amount', e.target.value)}
+                              placeholder="0.00"
+                            />
+                            <button className="remove-btn" onClick={() => removeFixedCost(c.id)}>✕</button>
+                          </div>
+                        ))}
+
+                        <div style={{ marginTop: 16, padding: '12px', background: 'var(--bg3)', borderRadius: 10 }}>
+                          <div className="chart-sub" style={{ marginBottom: 8 }}>+ Agregar gasto</div>
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <input
+                              className="cost-input" style={{ flex: 1 }}
+                              value={newCostName}
+                              onChange={e => setNewCostName(e.target.value)}
+                              placeholder="Nombre del gasto"
+                            />
+                            <input
+                              className="cost-input" style={{ width: 130 }}
+                              type="number" value={newCostAmount}
+                              onChange={e => setNewCostAmount(e.target.value)}
+                              placeholder="Monto MXN"
+                            />
+                          </div>
+                          <button className="add-cost-btn" style={{ marginTop: 8, width: '100%' }} onClick={addFixedCost}>
+                            + Agregar
+                          </button>
+                        </div>
+
+                        <div style={{ marginTop: 20, padding: '16px', background: 'rgba(0,229,160,0.05)', border: '1px solid rgba(0,229,160,0.15)', borderRadius: 10 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>
+                            <span>Total Gastos Fijos</span>
+                            <span className="neg">{fmt(totalFixedCosts)}</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                            <span>Utilidad Bruta</span>
+                            <span className={combined.utilidadBruta >= 0 ? 'pos' : 'neg'}>{fmt(combined.utilidadBruta)}</span>
+                          </div>
+                          <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '8px 0' }} />
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15, fontWeight: 700 }}>
+                            <span>Utilidad Operativa</span>
+                            <span className={combined.utilidadOperativa >= 0 ? 'pos' : 'neg'}>{fmt(combined.utilidadOperativa)}</span>
+                          </div>
+                        </div>
+
+                        {/* KPIs adicionales */}
+                        <div style={{ marginTop: 20 }}>
+                          <div className="pnl-section-header">INDICADORES ADICIONALES</div>
+                          <div className="pnl-line subtotal"><span>Ticket Promedio</span><span>{fmt(combined.ticketMedio)}</span></div>
+                          <div className="pnl-line subtotal"><span>Unidades Totales</span><span>{combined.unidadesTotal}</span></div>
+                          <div className="pnl-line subtotal"><span>% Cargos / Ingresos</span><span>{pct(combined.totalCargosPlatformas / combined.ingresoBrutoTotal)}</span></div>
+                          <div className="pnl-line subtotal"><span>% COGS / Ingresos</span><span>{pct(combined.cogsTotal / combined.ingresoBrutoTotal)}</span></div>
+                          <div className="pnl-line subtotal"><span>Break-even mensual</span><span>{fmt(totalFixedCosts)}</span></div>
+                          <div className="pnl-line subtotal">
+                            <span>Unidades p/ break-even</span>
+                            <span>{combined.ticketMedio > 0 && combined.margenBruto > 0
+                              ? Math.ceil(totalFixedCosts / (combined.ticketMedio * combined.margenBruto)) + ' uds.'
+                              : '—'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </section>
+
+          {/* FOOTER */}
+          <footer style={{ borderTop: '1px solid var(--border)', padding: '20px 24px', position: 'relative', zIndex: 1 }}>
+            <div style={{ maxWidth: 1400, margin: '0 auto', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+              <span style={{ fontSize: 11, color: 'var(--text3)', fontFamily: 'DM Mono, monospace' }}>
+                Dashboard Financiero · Marketplaces MX · Datos procesados localmente en tu navegador
+              </span>
+              <div style={{ display: 'flex', gap: 16, fontSize: 11, color: 'var(--text3)', fontFamily: 'DM Mono, monospace' }}>
+                <span>IVA 16% · ISR Retención 2.5% (LIF 2026)</span>
+                <span>Consulta a tu contador para decisiones fiscales</span>
+              </div>
+            </div>
+          </footer>
+        </>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
